@@ -15,6 +15,9 @@ private:
     int move_cooldown;
     Vector2i next_move;
     Vector2f feed_position;
+    Vector2i size;
+    int points;
+    Font font;
     RectangleShape * create_body_piece();
 public:
     Snake();
@@ -24,6 +27,7 @@ public:
     void start();
     void move(Vector2i direction);
     void create_feed();
+    void get_size();
 };
 
 #endif
