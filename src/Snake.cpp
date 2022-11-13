@@ -1,12 +1,25 @@
 #include "Snake.hpp"
 
-Snake::Snake()
+SnakeSegment::SnakeSegment(sf::Vector2f position)
 {
-    body = std::vector<RectangleShape*>();
-    move_cooldown = 30;
-    size = Vector2i(30 * BLOCK_SIZE, 30 * BLOCK_SIZE);
-    font = Font();
-    font.loadFromFile("arial.ttf");
+    this->position = position;
+}
+
+void SnakeSegment::SetPosition(sf::Vector2f position)
+{
+    this->position = position;
+}
+
+sf::Vector2f SnakeSegment::GetPosition()
+{
+    return position;
+}
+
+Snake::Snake(unsigned int block_size, sf::Vector2i initial_position)
+{
+    this->block_size = block_size;
+    this->initial_position = initial_position;
+    Reset();
 }
 
 Snake::~Snake()
@@ -14,117 +27,170 @@ Snake::~Snake()
 
 }
 
-void Snake::draw(RenderWindow * window)
+void Snake::Update()
 {
-    for (auto part : body)
+    if (move == SnakeMove::None) { return; }
+    if (!alive) { return; }
+    
+    for (int i = body.size() - 1; i > 0; i--)
     {
-        window->draw(*part);
+        body[i].SetPosition(body[i - 1].GetPosition());
     }
 
-    RectangleShape feed = RectangleShape(Vector2f(BLOCK_SIZE - 1, BLOCK_SIZE - 1));
-    feed.setPosition(feed_position);
-    feed.setFillColor(Color::Yellow);
-    window->draw(feed);
-
-    Text points_txt("SIZE: " + std::to_string(points + 1), font);
-    points_txt.setCharacterSize(13);
-    points_txt.setPosition(size.x - 100, 10);
-    points_txt.setStyle(Text::Bold);
-    points_txt.setFillColor(Color::Red);
-    window->draw(points_txt);
+    sf::Vector2f step = body[0].GetPosition();
+    if (move == SnakeMove::Right)
+    {
+        step.x += 1;
+    }
+    if (move == SnakeMove::Left)
+    {
+        step.x -= 1;
+    }
+    if (move == SnakeMove::Up)
+    {
+        step.y -= 1;
+    }
+    if (move == SnakeMove::Down)
+    {
+        step.y += 1;
+    }
+    body[0].SetPosition(step);
+    CheckCollision();
 }
 
-void Snake::run(RenderWindow * window)
+void Snake::Render(Window* window, sf::IntRect screen)
 {
-    if (--move_cooldown > 0) return;
-    move_cooldown = 30 - (points/2 < 25 ? points/2 : 25);
+    sf::RectangleShape piece(sf::Vector2f(block_size - 1, block_size - 1));
+    piece.setOrigin(sf::Vector2f(block_size / 2, block_size / 2));
+    piece.setFillColor(sf::Color::Yellow);
+    piece.setPosition(sf::Vector2f(
+        body[0].GetPosition().x * block_size + screen.left,
+        body[0].GetPosition().y * block_size + screen.top));
+    window->Draw(piece);
 
-    auto head = body.at(0);
-    auto past_pos = head->getPosition();
-
-    head->move(next_move.x * BLOCK_SIZE, next_move.y * BLOCK_SIZE);
-
-    const int limit_w_min = 0;
-    const int limit_w_max = size.x - BLOCK_SIZE;
-    const int limit_h_min = 0;
-    const int limit_h_max = size.y - BLOCK_SIZE;
-    
-    if (head->getPosition().x < limit_w_min)
-    {
-        head->setPosition(limit_w_max, head->getPosition().y);
-    }
-
-    if (head->getPosition().x > limit_w_max)
-    {
-        head->setPosition(limit_w_min, head->getPosition().y);
-    }
-
-    if (head->getPosition().y < limit_h_min)
-    {
-        head->setPosition(head->getPosition().x, limit_h_max);
-    }
-
-    if (head->getPosition().y > limit_h_max)
-    {
-        head->setPosition(head->getPosition().x, limit_h_min);
-    }
-
-    // get feed
-    if (head->getPosition() == feed_position)
-    {
-        points += 1;
-        auto new_piece = create_body_piece();
-        body.push_back(new_piece);
-        create_feed();
-    }
-
-    // check game over
+    piece.setFillColor(sf::Color::White);
     for (int i = 1; i < body.size(); i++)
     {
-        if (body.at(i)->getPosition() == head->getPosition())
+        piece.setPosition(sf::Vector2f(
+            body[i].GetPosition().x * block_size + screen.left,
+            body[i].GetPosition().y * block_size + screen.top));
+        window->Draw(piece);
+    }
+}
+
+void Snake::Reset()
+{
+    alive = true;
+    lives = 3;
+    move = SnakeMove::None;
+    points = 0;
+    body.clear();
+    for (int i = -1; i < 2; i++)
+    {
+        body.push_back(SnakeSegment(sf::Vector2f(initial_position.x + i, initial_position.y)));
+    }
+}
+
+void Snake::Grow()
+{
+    sf::Vector2f new_tail;
+    points += 1;
+    
+    if (body.size() > 1)
+    {
+        sf::Vector2f tail_head = body[body.size() - 1].GetPosition();
+        sf::Vector2f tail_bone = body[body.size() - 2].GetPosition();
+        new_tail = sf::Vector2f(tail_head.x, tail_head.y);
+
+        if (tail_head.x == tail_bone.x)
         {
-            start();
+            if (tail_head.y > tail_bone.y) { new_tail.y += 1; }
+            else { new_tail.y -= 1; }
+        }
+        else
+        if (tail_head.y == tail_bone.y)
+        {
+            if (tail_head.x > tail_bone.x) { new_tail.x += 1; }
+            else { new_tail.x -= 1; }
+        }
+    }
+    else
+    {
+        new_tail = body[0].GetPosition();
+        if (move == SnakeMove::Left)
+        {
+            new_tail.x += 1;
+        }
+        else
+        if (move == SnakeMove::Right)
+        {
+            new_tail.x += -1;
+        }
+        else
+        if (move == SnakeMove::Up)
+        {
+            new_tail.y += 1;
+        }
+        else
+        if (move == SnakeMove::Up)
+        {
+            new_tail.y += -1;
+        }
+    }
+    body.push_back(SnakeSegment(new_tail));
+}
+
+void Snake::Lose()
+{
+    this->alive = false;
+    this->lives = 0;
+}
+
+void Snake::SetDirection(SnakeMove move)
+{
+    this->move = move;
+}
+
+sf::Vector2f Snake::GetPosition()
+{
+    return body[0].GetPosition();
+}
+
+void Snake::CheckCollision()
+{
+    if (body.size() == 1) { return; }
+    SnakeSegment head = body[0];
+    for (int i = 1; i < body.size(); i++)
+    {
+        if (head.GetPosition() == body[i].GetPosition())
+        {
+            Cut(i - 1);
             return;
         }
     }
+}
 
-    Vector2f last = past_pos;
-    Vector2f aux;
-    for (int i = 1; i < body.size(); i++)
+void Snake::Cut(int on_index)
+{
+    lives -= 1;
+    if (lives == 0) { Lose(); }
+    while (body.size() > on_index)
     {
-        aux = body.at(i)->getPosition();
-        body.at(i)->setPosition(last);
-        last = aux;
+        body.pop_back();
     }
 }
 
-void Snake::start()
+SnakeMove Snake::GetMove()
 {
-    body.clear();
-
-    next_move = Vector2i(1, 0);
-    points = 0;
-
-    auto block = create_body_piece();
-    block->setPosition(0, 0);
-    body.push_back(block);
-
-    create_feed();
+    return move;
 }
 
-void Snake::move(Vector2i direction)
+unsigned int Snake::GetLives()
 {
-    next_move = direction;
-    move_cooldown = 0;
+    return lives;
 }
 
-void Snake::create_feed() {
-    feed_position = Vector2f((rand() % 30) * BLOCK_SIZE, (rand() % 30) * BLOCK_SIZE);
-}
-
-RectangleShape * Snake::create_body_piece()
+unsigned int Snake::GetPoints()
 {
-    RectangleShape * piece = new RectangleShape(Vector2f(BLOCK_SIZE - 1, BLOCK_SIZE - 1));
-    piece->setPosition(-1, 0); // spawn outside board
-    return piece;
+    return points;
 }

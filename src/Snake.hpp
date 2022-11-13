@@ -1,33 +1,48 @@
 #ifndef SNAKE_H
 #define SNAKE_H 1
+#include <vector>
+#include <SFML/Graphics.hpp>
+#include "Window.hpp"
 
-#define BLOCK_SIZE 20
+class SnakeSegment
+{
+private:
+    sf::Vector2f position;
+public:
+    SnakeSegment(sf::Vector2f);
+    void SetPosition(sf::Vector2f);
+    sf::Vector2f GetPosition();
+};
 
-#include "SFML/Graphics.hpp"
-#include "vector"
+using SnakeContainer = std::vector<SnakeSegment>;
 
-using namespace sf;
+enum SnakeMove { None, Up, Right, Down, Left };
 
 class Snake
 {
 private:
-    std::vector<RectangleShape*> body;
-    int move_cooldown;
-    Vector2i next_move;
-    Vector2f feed_position;
-    Vector2i size;
-    int points;
-    Font font;
-    RectangleShape * create_body_piece();
+    SnakeMove move;
+    SnakeContainer body;
+    bool alive;
+    unsigned int block_size;
+    unsigned int lives;
+    unsigned int points;
+    sf::Vector2i initial_position;
+    void CheckCollision();
+    void Cut(int);
 public:
-    Snake();
+    Snake(unsigned int, sf::Vector2i);
     ~Snake();
-    void draw(RenderWindow * window);
-    void run(RenderWindow * window);
-    void start();
-    void move(Vector2i direction);
-    void create_feed();
-    void get_size();
+    void Update();
+    void Render(Window*, sf::IntRect);
+    void Reset();
+    void Grow();
+    void Lose();
+    void SetDirection(SnakeMove);
+    sf::Vector2f GetPosition();
+    SnakeMove GetMove();
+    unsigned int GetLives();
+    unsigned int GetPoints();
 };
 
 #endif

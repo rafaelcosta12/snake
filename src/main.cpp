@@ -1,6 +1,13 @@
-#include "Game.hpp"
+#include <SFML/Graphics.hpp>
+#include "World.hpp"
 
 int main()
 {
-    Game().start();
+    World game = World();
+    while (game.IsOpen())
+    {
+        game.EventHandle();
+        game.Update();
+        game.Render();
+    }
 }
