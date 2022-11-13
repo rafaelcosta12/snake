@@ -8,7 +8,7 @@
             "name": "Snake - Debug",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceRoot}/snake.out",
+            "program": "${workspaceRoot}/bin/snake.out",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceRoot}",
